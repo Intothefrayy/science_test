@@ -1,0 +1,83 @@
+#visuals, add this to the main file
+
+# Name of groups by X
+group_names = ["control", "PPA 5 days", "PPA 10 days"]
+x_positions = np.arange(len(group_names))
+
+def get_asterisks(p):
+    if p < 0.001:
+        return '***'
+    elif p <= 0.01:
+        return '**'
+    elif p <= 0.05:
+        return '*'
+    else:
+        return ''
+
+def plot_param(ax, param, title, comparisons):
+    # gathering data
+    arrays = [data[data['group'] == g][param].dropna().values for g in group_names]
+    means = [arr.mean() if len(arr)>0 else np.nan for arr in arrays]
+    sems  = [arr.std(ddof=1)/np.sqrt(len(arr)) if len(arr)>0 else 0 for arr in arrays]
+
+    # 1) bar-plot with errors
+    ax.bar(x_positions, means, yerr=sems, capsize=5, edgecolor='black')
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(group_names)
+    ax.set_title(title)
+    ax.set_ylabel(param)
+
+    # 2) Diffusion
+    for xi, arr in zip(x_positions, arrays):
+        jitter = (np.random.rand(len(arr)) - 0.5) * 0.2
+        ax.scatter(np.full(len(arr), xi) + jitter, arr, alpha=0.7, s=20, zorder=2)
+
+    
+    ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=6))            # максимум 6 тиков
+    ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%.2f'))     # два знака после точки
+    ax.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.7)
+
+    # 4) Annotation
+    y_max = max((m + s) for m, s in zip(means, sems)) * 1.1
+    for g1, g2 in comparisons:
+        p_val = results[param][f"{g1} vs {g2}"][1]
+        stars = get_asterisks(p_val)
+        if stars:
+            i1, i2 = group_names.index(g1), group_names.index(g2)
+            x1, x2 = x_positions[i1], x_positions[i2]
+            y = y_max + 0.05 * y_max
+            ax.plot([x1, x1, x2, x2],
+                    [y, y+0.02*y_max, y+0.02*y_max, y],
+                    lw=1.5, color='black')
+            ax.text((x1+x2)/2, y+0.02*y_max, stars,
+                    ha='center', va='bottom')
+
+# 1. Active Zone Parameters
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, param in zip(axes, ['Length of AZ(nm)', 'Width of AZ(nm)']):
+    plot_param(ax,
+               param,
+               f"Active Zone: {param}",
+               comparisons=[('control','PPA 5 days'),('control','PPA 10 days')])
+plt.tight_layout()
+plt.show()
+
+# 2. Presynaptic Mitochondria Parameters
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, param in zip(axes, ['Distance bw presyn mitochon & AZ', 'Area of pre Mitoch']):
+    plot_param(ax,
+               param,
+               f"Presynaptic Mitochondria: {param}",
+               comparisons=[('control','PPA 5 days'),('control','PPA 10 days')])
+plt.tight_layout()
+plt.show()
+
+# 3. Postsynaptic Mitochondria Parameters
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, param in zip(axes, ['Area of post Mitoch', 'Distance bw postsyn mitoch & AZ(nm)']):
+    plot_param(ax,
+               param,
+               f"Postsynaptic Mitochondria: {param}",
+               comparisons=[('control','PPA 5 days'),('control','PPA 10 days')])
+plt.tight_layout()
+plt.show()
